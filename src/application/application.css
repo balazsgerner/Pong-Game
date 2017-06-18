@@ -1,0 +1,15 @@
+@font-face
+{
+    src: url("../resources/font/8bit.TTF");
+}
+.root{
+	-fx-background-color: black;
+}
+.label{
+	-fx-text-fill: white;
+	-fx-font-size: 24px;
+	-fx-font-family: "8BIT WONDER";
+}
+.title{
+	-fx-font-size: 36px;
+}

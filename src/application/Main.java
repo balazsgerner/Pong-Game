@@ -6,9 +6,9 @@ import java.util.TimerTask;
 import javafx.animation.Animation;
 import javafx.animation.FadeTransition;
 import javafx.animation.KeyFrame;
-import javafx.animation.PathTransition;
 import javafx.animation.Timeline;
 import javafx.application.Application;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Cursor;
 import javafx.scene.Scene;
@@ -16,14 +16,13 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.CornerRadii;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.LineTo;
-import javafx.scene.shape.MoveTo;
-import javafx.scene.shape.Path;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
@@ -43,17 +42,21 @@ public class Main extends Application {
 
   private static final double BALL_RADIUS = 15;
 
-  private static final double PADDLE_SPEED = 30;
+  private static final Color INITIAL_PADDLE_COLOR = Color.GREEN;
+
+  private static final Color LIGHT_PADDLE_COLOR = Color.GREENYELLOW;
 
   private double ballPosX = 20;
 
-  private double ballPosy = 20;
+  private double ballPosY = 20;
 
-  private double ballSpeedX = 5;
+  private double ballSpeedX = 2.5;
 
-  private double ballSpeedY = 4;
+  private double ballSpeedY = 2;
 
   private double paddleY = CENTERY - PADDLE_HEIGHT / 2;
+
+  private Color currentPaddleColor = INITIAL_PADDLE_COLOR;
 
   private Label clickToPlayLbl;
 
@@ -61,34 +64,41 @@ public class Main extends Application {
 
   private Scene scene;
 
+  private Canvas canvas;
+
   @Override
   public void start(Stage primaryStage) {
     try {
       root = new AnchorPane();
+      root.setBackground(new Background(new BackgroundFill(Color.WHITESMOKE, new CornerRadii(0), new Insets(0))));
       scene = new Scene(root, CANVAS_WIDTH, CANVAS_HEIGHT);
       scene.getStylesheets().add(getClass().getResource("application.css").toExternalForm());
 
       Label label = new Label("Pong Game");
+      label.setLayoutY(200);
       label.getStyleClass().add("title");
       Label demoLabel = new Label("DEMO");
       root.getChildren().add(demoLabel);
       demoLabel.setOpacity(0);
-      centerLabel(demoLabel);
       demoLabel.setLayoutY(250);
 
       clickToPlayLbl = new Label("Click to Play");
       clickToPlayLbl.setOpacity(0);
       root.getChildren().add(clickToPlayLbl);
-      centerLabel(clickToPlayLbl);
       clickToPlayLbl.setLayoutY(350);
 
-      showTitleLabel(label, demoLabel);
       root.getChildren().add(label);
       primaryStage.setScene(scene);
+      primaryStage.setFullScreen(true);
+
+      centerLabel(demoLabel);
+      centerLabel(clickToPlayLbl);
+      centerLabel(label);
+
+      showTitleLabel(label, demoLabel);
 
       root.setCursor(Cursor.NONE);
-      primaryStage.setResizable(false);
-      primaryStage.sizeToScene();
+
       Image icon = new Image(Main.class.getResourceAsStream("/resources/icon/8bit_icon.png"));
       primaryStage.getIcons().add(icon);
       primaryStage.setTitle("Pong Game");
@@ -99,24 +109,23 @@ public class Main extends Application {
   }
 
   private void showTitleLabel(Label label, Label demoLabel) {
-    Path path = new Path();
-    path.getElements().add(new MoveTo(CANVAS_WIDTH / 2, 10));
-    path.getElements().add(new LineTo(CANVAS_WIDTH / 2, 200));
-    PathTransition pathTransition = new PathTransition(Duration.millis(2000), path, label);
-    pathTransition.setAutoReverse(false);
-    pathTransition.setOnFinished(e -> showDemoMessage(demoLabel));
-    pathTransition.play();
+    FadeTransition ft = new FadeTransition(Duration.millis(1500), label);
+    ft.setFromValue(0.0);
+    ft.setToValue(1.0);
+    ft.setAutoReverse(false);
+    ft.setOnFinished(e -> showDemoMessage(demoLabel));
+    ft.play();
   }
 
   private void showDemoMessage(Label demoLabel) {
-    FadeTransition ft = new FadeTransition(Duration.millis(1250), demoLabel);
+    FadeTransition ft = new FadeTransition(Duration.millis(1500), demoLabel);
     ft.setFromValue(0.0);
     ft.setToValue(1);
     ft.setAutoReverse(false);
     ft.setCycleCount(1);
     ft.play();
 
-    ft.setOnFinished(e3 -> showClickToPlayMessage());
+    ft.setOnFinished(e -> showClickToPlayMessage());
   }
 
   private void centerLabel(Label label) {
@@ -136,7 +145,7 @@ public class Main extends Application {
   }
 
   private void initCanvas() {
-    Canvas canvas = new Canvas(CANVAS_WIDTH, CANVAS_HEIGHT);
+    canvas = new Canvas(CANVAS_WIDTH, CANVAS_HEIGHT);
 
     rePaintCanvas(canvas);
     Timeline timeline = new Timeline(new KeyFrame(Duration.millis(15), e -> rePaintCanvas(canvas)));
@@ -153,40 +162,53 @@ public class Main extends Application {
 
       private void moveBall() {
         if (ballPosX + ballSpeedX <= 0 || ballPosX + ballSpeedX + BALL_RADIUS >= CANVAS_WIDTH) {
+          if (ballPosX + ballSpeedX <= 0 && ballPosY >= paddleY && ballPosY <= paddleY + PADDLE_HEIGHT) {
+            Timer timer = new Timer();
+            timer.scheduleAtFixedRate(new TimerTask() {
+
+              int cycle = 0;
+
+              @Override
+              public void run() {
+                changeColor(timer);
+              }
+
+              private void changeColor(Timer timer) {
+                switch (cycle++) {
+                case 0:
+                  currentPaddleColor = LIGHT_PADDLE_COLOR;
+                  break;
+                case 1:
+                  currentPaddleColor = INITIAL_PADDLE_COLOR;
+                default:
+                  timer.cancel();
+                  break;
+                }
+              }
+            }, 0, 150);
+          }
           ballSpeedX = -ballSpeedX;
         } else {
-          ballPosX = ballPosX + ballSpeedX;
+          ballPosX += ballSpeedX;
         }
-
-        if (ballPosy + ballSpeedY <= 0 || ballPosy + ballSpeedY + BALL_RADIUS >= CANVAS_HEIGHT) {
+        if (ballPosY + ballSpeedY <= 0 || ballPosY + BALL_RADIUS + ballSpeedY >= CANVAS_HEIGHT) {
           ballSpeedY = -ballSpeedY;
         } else {
-          ballPosy = ballPosy + ballSpeedY;
+          ballPosY += ballSpeedY;
         }
       }
-    }, 0, 20);
+    }, 0, 5);
 
-    scene.setOnKeyPressed(e -> movePaddle(e));
+    scene.setOnMouseMoved(e -> movePaddle(e));
     BorderPane gamePanel = new BorderPane(canvas);
     gamePanel.setCursor(Cursor.NONE);
     scene.setRoot(gamePanel);
   }
 
-  private void movePaddle(KeyEvent e) {
-    KeyCode code = e.getCode();
-    switch (code) {
-    case UP:
-      if (paddleY >= PADDLE_SPEED) {
-        paddleY -= PADDLE_SPEED;
-      }
-      break;
-    case DOWN:
-      if (paddleY + PADDLE_HEIGHT <= CANVAS_HEIGHT - PADDLE_SPEED) {
-        paddleY += PADDLE_SPEED;
-      }
-      break;
-    default:
-      break;
+  private void movePaddle(MouseEvent e) {
+    double y = e.getSceneY();
+    if (y <= CANVAS_HEIGHT - PADDLE_HEIGHT) {
+      paddleY = y;
     }
   }
 
@@ -201,11 +223,16 @@ public class Main extends Application {
     ctx.strokeLine(CENTERX, 0, CENTERX, CANVAS_HEIGHT);
 
     ctx.setLineDashes(null);
+    ctx.setStroke(currentPaddleColor);
     ctx.setLineWidth(PADDLE_WIDTH);
     ctx.strokeLine(PADDLE_WIDTH / 2, paddleY, PADDLE_WIDTH / 2, paddleY + PADDLE_HEIGHT);
 
     ctx.setFill(Color.WHITE);
-    ctx.fillOval(ballPosX, ballPosy, BALL_RADIUS, BALL_RADIUS);
+    ctx.fillOval(ballPosX, ballPosY, BALL_RADIUS, BALL_RADIUS);
+
+    ctx.setStroke(Color.WHITE);
+    ctx.setLineWidth(2.5);
+    ctx.strokeRect(0, 0, CANVAS_HEIGHT, CANVAS_HEIGHT);
   }
 
   public static void main(String[] args) {
